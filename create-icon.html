@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas" style="border: 1px solid black;"></canvas>
+    <br>
+    <button onclick="downloadIcon(16)">16x16</button>
+    <button onclick="downloadIcon(32)">32x32</button>
+    <button onclick="downloadIcon(64)">64x64</button>
+    <button onclick="downloadIcon(128)">128x128</button>
+    <button onclick="downloadIcon(256)">256x256</button>
+    <button onclick="downloadIcon(512)">512x512</button>
+
+    <script>
+        function drawIcon(size) {
+            const canvas = document.getElementById('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Orange background with rounded corners
+            ctx.fillStyle = '#F59E0B';
+            const radius = size * 0.1875; // 96/512 ratio
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, radius);
+            ctx.fill();
+            
+            // Lightning bolt
+            ctx.fillStyle = '#111827';
+            ctx.beginPath();
+            
+            const scale = size / 512;
+            // Scaled coordinates from SVG path
+            ctx.moveTo(200 * scale, 112 * scale);
+            ctx.lineTo(312 * scale, 112 * scale);
+            ctx.lineTo(272 * scale, 224 * scale);
+            ctx.lineTo(336 * scale, 224 * scale);
+            ctx.lineTo(200 * scale, 400 * scale);
+            ctx.lineTo(232 * scale, 272 * scale);
+            ctx.lineTo(168 * scale, 272 * scale);
+            ctx.closePath();
+            ctx.fill();
+        }
+        
+        function downloadIcon(size) {
+            drawIcon(size);
+            const canvas = document.getElementById('canvas');
+            const link = document.createElement('a');
+            link.download = `icon_${size}x${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Draw initial icon
+        drawIcon(256);
+    </script>
+</body>
+</html>

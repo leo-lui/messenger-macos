@@ -1,6 +1,6 @@
 {
   "name": "messenger-desktop",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A lightweight macOS wrapper for Facebook Messenger",
   "main": "main.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "build": "node build-direct.js",
     "build-old": "electron-builder --mac",
     "pack": "electron-builder --dir",
+    "release": "npm run build && node create-release.js",
     "install-app": "node -e \"const fs=require('fs'),path=require('path'),os=require('os');const {execSync}=require('child_process');const src=path.join(__dirname,'dist','Messenger.app');const dst=path.join(os.homedir(),'Applications','Messenger.app');if(!fs.existsSync(src)){console.log('❌ App not found. Run npm run build first.');process.exit(1);}if(fs.existsSync(dst)){fs.rmSync(dst,{recursive:true,force:true});}fs.cpSync(src,dst,{recursive:true});try{execSync('xattr -cr '+JSON.stringify(dst));}catch(e){}console.log('✅ Messenger.app installed to Applications folder!');\"",
     "open-installed-debug": "open \"$HOME/Applications/Messenger.app\" --args --devtools"
   },

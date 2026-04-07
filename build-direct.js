@@ -42,13 +42,22 @@ if (fs.existsSync(assetsPath)) {
   execSync(`cp -r "${assetsPath}/"* "${appAssetsPath}/" 2>/dev/null || true`);
 }
 
+// Copy custom icon
+const iconPath = path.join(__dirname, 'assets/icon.icns');
+if (fs.existsSync(iconPath)) {
+  console.log('🎨 Copying custom icon...');
+  fs.copyFileSync(iconPath, path.join(outputPath, 'Contents/Resources/electron.icns'));
+}
+
 // Update Info.plist
 const infoPlistPath = path.join(outputPath, 'Contents/Info.plist');
 if (fs.existsSync(infoPlistPath)) {
+  console.log('📝 Updating Info.plist...');
   let plist = fs.readFileSync(infoPlistPath, 'utf8');
   plist = plist.replace(/<key>CFBundleName<\/key>\s*<string>.*?<\/string>/, '<key>CFBundleName</key>\n\t<string>Messenger</string>');
   plist = plist.replace(/<key>CFBundleDisplayName<\/key>\s*<string>.*?<\/string>/, '<key>CFBundleDisplayName</key>\n\t<string>Messenger</string>');
   plist = plist.replace(/<key>CFBundleIdentifier<\/key>\s*<string>.*?<\/string>/, '<key>CFBundleIdentifier</key>\n\t<string>com.leo.messenger-desktop</string>');
+  plist = plist.replace(/<key>CFBundleIconFile<\/key>\s*<string>.*?<\/string>/, '<key>CFBundleIconFile</key>\n\t<string>electron</string>');
   fs.writeFileSync(infoPlistPath, plist);
 }
 
