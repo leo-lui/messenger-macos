@@ -1,13 +1,15 @@
 {
   "name": "messenger-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A lightweight macOS wrapper for Facebook Messenger",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --mac",
+    "build": "node build-direct.js",
+    "build-old": "electron-builder --mac",
     "pack": "electron-builder --dir",
-    "install-app": "node -e \"const fs=require('fs'),path=require('path'),os=require('os');const arch=os.arch()==='arm64'?'mac-arm64':'mac';const src=path.join(__dirname,'dist',arch,'Messenger.app');const dst=path.join(os.homedir(),'Applications','Messenger.app');if(!fs.existsSync(src)){console.log('❌ App not found. Run npm run build first.');process.exit(1);}if(fs.existsSync(dst)){fs.rmSync(dst,{recursive:true,force:true});}fs.cpSync(src,dst,{recursive:true});console.log('✅ Messenger.app installed to Applications folder!');\""
+    "install-app": "node -e \"const fs=require('fs'),path=require('path'),os=require('os');const {execSync}=require('child_process');const src=path.join(__dirname,'dist','Messenger.app');const dst=path.join(os.homedir(),'Applications','Messenger.app');if(!fs.existsSync(src)){console.log('❌ App not found. Run npm run build first.');process.exit(1);}if(fs.existsSync(dst)){fs.rmSync(dst,{recursive:true,force:true});}fs.cpSync(src,dst,{recursive:true});try{execSync('xattr -cr '+JSON.stringify(dst));}catch(e){}console.log('✅ Messenger.app installed to Applications folder!');\"",
+    "open-installed-debug": "open \"$HOME/Applications/Messenger.app\" --args --devtools"
   },
   "author": "Leo",
   "license": "MIT",
@@ -18,13 +20,14 @@
   "build": {
     "appId": "com.leo.messenger-desktop",
     "productName": "Messenger",
+    "electronVersion": "28.3.3",
     "mac": {
       "category": "public.app-category.social-networking",
       "icon": "assets/icon.icns",
       "target": [
         {
-          "target": "default",
-          "arch": ["x64", "arm64"]
+          "target": "dir",
+          "arch": ["arm64"]
         }
       ],
       "hardenedRuntime": false,
@@ -32,7 +35,6 @@
     },
     "files": [
       "main.js",
-      "preload.js",
       "styles.css",
       "assets/**/*"
     ],

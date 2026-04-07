@@ -1,69 +1,7 @@
-/* Messenger Desktop Custom Styles */
+/* Messenger Desktop — keep rules narrow. Global html/body overflow hacks break
+   facebook.com/login.php and cause a blank screen. Only non-layout tweaks below. */
 
-/* Prevent overflow and ensure proper sizing */
-html, body {
-  height: 100% !important;
-  width: 100% !important;
-  overflow: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Make the top area draggable for window movement */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 32px;
-  -webkit-app-region: drag;
-  z-index: 99999;
-  pointer-events: none;
-}
-
-/* Ensure main container uses full height without causing overflow */
-#app,
-[role="main"],
-[data-pagelet="root"],
-body > div[style*="height"] {
-  height: 100vh !important;
-  max-height: 100vh !important;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-  box-sizing: border-box !important;
-}
-
-/* Fix any full-height containers */
-body > div {
-  max-height: 100vh !important;
-  overflow: hidden !important;
-}
-
-/* Allow scrolling only in chat/content areas */
-[role="main"],
-[data-pagelet="ChatTab"],
-[data-pagelet="ChatTab"] > div {
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
-}
-
-/* Ensure navigation/header doesn't overlap with traffic lights */
-[role="banner"],
-header,
-nav {
-  margin-top: 0 !important;
-}
-
-/* Hide annoying banners and prompts */
-[role="dialog"][aria-label*="browser"],
-[role="dialog"][aria-label*="app"],
-[aria-label*="Get the app"],
-[aria-label*="download"] {
-  display: none !important;
-}
-
-/* Smoother scrollbars */
+/* Smoother scrollbars (applies wherever scroll areas exist) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -82,31 +20,25 @@ nav {
   background: rgba(128, 128, 128, 0.6);
 }
 
-/* Hide download app prompts in the sidebar */
-[data-testid*="download"],
-[aria-label*="Download"] {
-  display: none !important;
-}
-
-/* Subtle improvements for dark mode compatibility */
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar-thumb {
     background: rgba(200, 200, 200, 0.3);
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(200, 200, 200, 0.5);
   }
 }
 
-/* Focus styles for better keyboard navigation */
-*:focus-visible {
-  outline: 2px solid #0084ff !important;
-  outline-offset: 2px;
+/* Hide “get the app” / install prompts (non-destructive) */
+[role="dialog"][aria-label*="browser"],
+[role="dialog"][aria-label*="app"],
+[aria-label*="Get the app"],
+[aria-label*="download"],
+[data-testid*="download"] {
+  display: none !important;
 }
 
-/* Remove "Install App" type banners */
-[role="complementary"] > div:has([href*="download"]),
 .download-banner,
 .install-prompt {
   display: none !important;
