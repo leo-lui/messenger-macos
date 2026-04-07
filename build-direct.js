@@ -28,6 +28,12 @@ console.log('📄 Copying app files...');
 fs.copyFileSync(path.join(__dirname, 'main.js'), path.join(appDir, 'main.js'));
 fs.copyFileSync(path.join(__dirname, 'package.json'), path.join(appDir, 'package.json'));
 
+// Copy preload.js if it exists
+const preloadPath = path.join(__dirname, 'preload.js');
+if (fs.existsSync(preloadPath)) {
+  fs.copyFileSync(preloadPath, path.join(appDir, 'preload.js'));
+}
+
 // Copy styles.css if it exists
 const stylesPath = path.join(__dirname, 'styles.css');
 if (fs.existsSync(stylesPath)) {

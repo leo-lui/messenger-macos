@@ -10,9 +10,13 @@ if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('disable-gpu-sandbox');
 }
 
-// Chrome-like User Agent (no "Electron" string)
-const USER_AGENT = `Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
+// Chrome-like User Agent (no "Electron" string) - use latest Chrome version
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 app.userAgentFallback = USER_AGENT;
+
+// Hide Electron from detection
+app.commandLine.appendSwitch('disable-web-security');
+app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor');
 
 let mainWindow;
 let unreadCount = 0;
@@ -29,50 +33,89 @@ function createWindow() {
     y: windowState.y,
     minWidth: 400,
     minHeight: 500,
-    titleBarStyle: 'default',
-    backgroundColor: '#ffffff',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
       spellcheck: true,
-      partition: 'persist:messenger',
-      webSecurity: true,
+      partition: 'persist:messenger', // Persistent session storage - keeps login after quit
+      webSecurity: false, // Disable web security to bypass some restrictions
+      allowRunningInsecureContent: true,
+      experimentalFeatures: true,
     },
     icon: path.join(__dirname, 'assets', 'icon.png'),
-    show: true, // Show immediately
+    show: false,
   });
 
   mainWindow.webContents.setUserAgent(USER_AGENT);
 
-  // Error handling
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    if (isMainFrame) {
-      console.error('[did-fail-load]', errorCode, errorDescription, validatedURL);
-      if (errorCode !== -3) { // Not aborted
-        dialog.showErrorBox('Load Error', `${errorDescription}\n(${errorCode})\n${validatedURL}`);
-      }
-    }
-  });
-
-  mainWindow.webContents.on('render-process-gone', (event, details) => {
-    console.error('[render-process-gone]', details);
-    dialog.showErrorBox('Renderer Crashed', `Reason: ${details.reason}\nExit Code: ${details.exitCode}`);
-  });
-
-  // Debug logging
-  mainWindow.webContents.on('did-navigate', (event, url) => {
-    console.log('[did-navigate]', url);
-  });
-
-  mainWindow.webContents.on('console-message', (event, level, message) => {
-    if (level >= 2) { // Warnings and errors
-      console.log('[page]', message);
-    }
+  // Set additional headers to look more like a real browser and bypass detection
+  mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    // Remove any Electron-related headers
+    delete details.requestHeaders['User-Agent'];
+    delete details.requestHeaders['user-agent'];
+    
+    // Add convincing browser headers
+    details.requestHeaders['User-Agent'] = USER_AGENT;
+    details.requestHeaders['sec-ch-ua'] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"';
+    details.requestHeaders['sec-ch-ua-mobile'] = '?0';
+    details.requestHeaders['sec-ch-ua-platform'] = '"macOS"';
+    details.requestHeaders['sec-fetch-dest'] = 'document';
+    details.requestHeaders['sec-fetch-mode'] = 'navigate';
+    details.requestHeaders['sec-fetch-site'] = 'none';
+    details.requestHeaders['sec-fetch-user'] = '?1';
+    details.requestHeaders['upgrade-insecure-requests'] = '1';
+    details.requestHeaders['accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7';
+    details.requestHeaders['accept-language'] = 'en-US,en;q=0.9';
+    details.requestHeaders['cache-control'] = 'max-age=0';
+    
+    callback({ requestHeaders: details.requestHeaders });
   });
 
   // Load Facebook Messages directly
   mainWindow.loadURL(MESSENGER_URL);
+
+  // Inject script to hide Electron detection
+  mainWindow.webContents.on('dom-ready', () => {
+    mainWindow.webContents.executeJavaScript(`
+      // Hide Electron detection
+      Object.defineProperty(navigator, 'userAgent', {
+        get: () => '${USER_AGENT}'
+      });
+      
+      // Remove electron from process if it exists
+      if (window.process && window.process.versions && window.process.versions.electron) {
+        delete window.process.versions.electron;
+      }
+      
+      // Hide other Electron indicators
+      if (window.require) {
+        delete window.require;
+      }
+      if (window.module) {
+        delete window.module;
+      }
+      if (window.__dirname) {
+        delete window.__dirname;
+      }
+      if (window.__filename) {
+        delete window.__filename;
+      }
+      
+      // Override chrome object to look more like regular Chrome
+      if (!window.chrome) {
+        window.chrome = {
+          runtime: {},
+          loadTimes: function() { return {}; },
+          csi: function() { return {}; }
+        };
+      }
+    `);
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
