@@ -1,6 +1,6 @@
 {
   "name": "messenger-desktop",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "A lightweight macOS wrapper for Facebook Messenger",
   "main": "main.js",
   "scripts": {
@@ -15,13 +15,13 @@
   "author": "Leo",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^28.1.0",
+    "electron": "^41.1.1",
     "electron-builder": "^24.9.1"
   },
   "build": {
     "appId": "com.leo.messenger-desktop",
     "productName": "Messenger",
-    "electronVersion": "28.3.3",
+    "electronVersion": "41.1.1",
     "mac": {
       "category": "public.app-category.social-networking",
       "icon": "assets/icon.icns",
