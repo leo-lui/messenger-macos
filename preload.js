@@ -12,6 +12,78 @@ contextBridge.exposeInMainWorld('messengerApp', {
   }
 });
 
+function closestHref(el) {
+  let node = el;
+  while (node && node !== document.documentElement) {
+    if (node.tagName === 'A' && node.href) return node.href;
+    // Messenger sometimes wraps links without a real <a href>
+    const href = node.getAttribute && (node.getAttribute('href') || node.getAttribute('data-href'));
+    if (href && /^(https?:|mailto:|fb:)/i.test(href)) {
+      try {
+        return new URL(href, location.href).href;
+      } catch {
+        return href;
+      }
+    }
+    node = node.parentElement;
+  }
+  return '';
+}
+
+function closestImageSrc(el) {
+  let node = el;
+  while (node && node !== document.documentElement) {
+    if (node.tagName === 'IMG' && node.src) return node.src;
+    if (node.tagName === 'VIDEO' && (node.currentSrc || node.src || node.poster)) {
+      return node.currentSrc || node.src || node.poster;
+    }
+    node = node.parentElement;
+  }
+  return '';
+}
+
+function isEditable(el) {
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  const tag = (el.tagName || '').toLowerCase();
+  return tag === 'input' || tag === 'textarea' || el.getAttribute?.('role') === 'textbox';
+}
+
+// Facebook cancels Chromium's context menu, so Electron's context-menu
+// event never fires. Capture right-click first and ask main to show ours.
+window.addEventListener(
+  'contextmenu',
+  (e) => {
+    // Don't steal the drag title bar
+    if (e.target && e.target.id === 'electron-drag-bar') return;
+
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    const selectionText = (window.getSelection && String(window.getSelection())) || '';
+    const linkURL = closestHref(e.target);
+    const srcURL = closestImageSrc(e.target);
+    const editable = isEditable(e.target);
+
+    ipcRenderer.send('show-context-menu', {
+      x: e.clientX,
+      y: e.clientY,
+      linkURL,
+      srcURL,
+      hasImageContents: Boolean(srcURL),
+      selectionText: selectionText.trim(),
+      isEditable: editable,
+      editFlags: {
+        canCut: editable && selectionText.length > 0,
+        canCopy: selectionText.length > 0 || Boolean(linkURL),
+        canPaste: editable,
+        canSelectAll: true,
+      },
+    });
+  },
+  true // capture — before Messenger's handlers
+);
+
 // Override the document title observer to track unread counts
 window.addEventListener('DOMContentLoaded', () => {
   // Add custom class for styling

@@ -1,6 +1,123 @@
-const { app, BrowserWindow, shell, Menu, dialog, session } = require('electron');
+const { app, BrowserWindow, shell, Menu, dialog, session, clipboard, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
+
+function showAppContextMenu(params, browserWindow) {
+  if (!browserWindow || browserWindow.isDestroyed()) return;
+
+  const items = [];
+
+  if (params.linkURL) {
+    items.push(
+      {
+        label: 'Open Link in New Window',
+        click: () => openInNewWindow(params.linkURL),
+      },
+      {
+        label: 'Copy Link',
+        click: () => clipboard.writeText(params.linkURL),
+      },
+      { type: 'separator' }
+    );
+  }
+
+  if (params.hasImageContents && params.srcURL) {
+    items.push(
+      {
+        label: 'Open Image in New Window',
+        click: () => openInNewWindow(params.srcURL),
+      },
+      {
+        label: 'Copy Image Address',
+        click: () => clipboard.writeText(params.srcURL),
+      },
+      { type: 'separator' }
+    );
+  }
+
+  if (params.isEditable) {
+    items.push(
+      { role: 'cut', enabled: Boolean(params.editFlags?.canCut) },
+      { role: 'copy', enabled: Boolean(params.editFlags?.canCopy) },
+      { role: 'paste', enabled: Boolean(params.editFlags?.canPaste) },
+      { role: 'selectAll', enabled: Boolean(params.editFlags?.canSelectAll) }
+    );
+  } else {
+    if (params.selectionText) {
+      items.push({ role: 'copy', enabled: Boolean(params.editFlags?.canCopy) });
+    }
+    items.push(
+      { role: 'paste', enabled: Boolean(params.editFlags?.canPaste) },
+      { role: 'selectAll', enabled: Boolean(params.editFlags?.canSelectAll) }
+    );
+  }
+
+  if (params.selectionText && !params.linkURL) {
+    const preview =
+      params.selectionText.slice(0, 30) + (params.selectionText.length > 30 ? '…' : '');
+    items.push(
+      { type: 'separator' },
+      {
+        label: 'Search Google for “' + preview + '”',
+        click: () => {
+          shell.openExternal(
+            'https://www.google.com/search?q=' + encodeURIComponent(params.selectionText)
+          );
+        },
+      }
+    );
+  }
+
+  if (items.length === 0) return;
+
+  // Let Electron place the menu at the cursor (x/y from the page are not screen coords)
+  Menu.buildFromTemplate(items).popup({ window: browserWindow });
+}
+
+function isAppHostedUrl(url) {
+  try {
+    const { hostname } = new URL(url);
+    return (
+      hostname.includes('facebook.com') ||
+      hostname.includes('messenger.com') ||
+      hostname.includes('fb.com') ||
+      hostname.includes('fbcdn.net') ||
+      hostname.includes('google.com') // OAuth / login helpers
+    );
+  } catch {
+    return false;
+  }
+}
+
+function openInNewWindow(url) {
+  if (!url || url === 'about:blank') return;
+  // Keep Facebook/Messenger/auth flows in-app; everything else goes to the system browser
+  if (isAppHostedUrl(url)) {
+    const child = new BrowserWindow({
+      width: 1000,
+      height: 800,
+      minWidth: 400,
+      minHeight: 500,
+      titleBarStyle: 'hiddenInset',
+      trafficLightPosition: { x: 16, y: 16 },
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        spellcheck: true,
+        partition: 'persist:messenger',
+      },
+      show: true,
+    });
+    child.webContents.setUserAgent(USER_AGENT);
+    child.loadURL(url);
+    child.webContents.setWindowOpenHandler(({ url: nextUrl }) => {
+      openInNewWindow(nextUrl);
+      return { action: 'deny' };
+    });
+    return;
+  }
+  shell.openExternal(url);
+}
 
 // Force same userData for dev and packaged builds
 app.setPath('userData', path.join(app.getPath('appData'), 'messenger-desktop'));
@@ -135,14 +252,23 @@ function createWindow() {
     console.log('Session path:', ses.getStoragePath?.());
   });
 
-  // Handle external links
+  // target=_blank / window.open → new window (or system browser for external links)
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    const u = new URL(url);
-    if (u.hostname.includes('facebook.com') || u.hostname.includes('google.com')) {
-      return { action: 'allow' };
-    }
-    shell.openExternal(url);
+    openInNewWindow(url);
     return { action: 'deny' };
+  });
+
+  // Same-window navigations away from Messenger → open externally instead
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAppHostedUrl(url)) {
+      event.preventDefault();
+      openInNewWindow(url);
+    }
+  });
+
+  // Fallback if Chromium still emits context-menu (editable fields, etc.)
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    showAppContextMenu(params, mainWindow);
   });
 
   // Window state
@@ -237,6 +363,12 @@ app.whenReady().then(() => {
     } else {
       callback(false);
     }
+  });
+
+  // Preload captures right-click (Facebook cancels Chromium's context menu)
+  ipcMain.on('show-context-menu', (event, params) => {
+    const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    showAppContextMenu(params, win);
   });
 
   createMenu();
