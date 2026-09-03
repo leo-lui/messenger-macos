@@ -172,6 +172,23 @@ Edit `styles.css` to customize the appearance of the Messenger interface. After 
 - Fully quit the app and reopen the installed build (`npm run build && npm run install-app`)
 - Make sure you're not right-clicking the thin drag strip at the very top of the window
 
+**“Messenger is damaged and can’t be opened” on another Mac?**
+
+Usually Gatekeeper + an unsigned download — not a corrupt file. After installing:
+
+```bash
+xattr -cr /Applications/Messenger.app
+# or:
+xattr -cr ~/Applications/Messenger.app
+```
+
+Then open the app again (or right-click → Open).
+
+Also check:
+
+- Current release builds are **Apple Silicon (arm64)** only
+- Prefer the **ZIP** from the GitHub release if the DMG still fails after `xattr -cr`
+
 ## License
 
 MIT - For personal use only.

@@ -21,14 +21,22 @@ if (!fs.existsSync(appPath)) {
   process.exit(1);
 }
 
+// Strip any quarantine attrs before packaging
+try {
+  execSync(`xattr -cr "${appPath}"`);
+} catch (e) {
+  // ignore
+}
+
 console.log('📦 Creating DMG installer...');
 
 // Create temporary DMG directory
 const tempDmgDir = path.join(releasePath, 'dmg-temp');
 fs.mkdirSync(tempDmgDir, { recursive: true });
 
-// Copy app to temp directory
-execSync(`cp -r "${appPath}" "${tempDmgDir}/"`);
+// Copy app to temp directory (preserve symlinks)
+execSync(`ditto "${appPath}" "${path.join(tempDmgDir, 'Messenger.app')}"`);
+execSync(`xattr -cr "${path.join(tempDmgDir, 'Messenger.app')}"`);
 
 // Create Applications symlink for easy installation
 execSync(`ln -s /Applications "${tempDmgDir}/Applications"`);
@@ -40,12 +48,19 @@ try {
   console.log(`✅ DMG created: ${dmgPath}`);
 } catch (error) {
   console.error('❌ Failed to create DMG:', error.message);
-  
-  // Fallback to ZIP
-  console.log('📦 Creating ZIP fallback...');
-  const zipPath = path.join(releasePath, `Messenger-${version}-macOS.zip`);
-  execSync(`cd "${path.dirname(appPath)}" && zip -r "${zipPath}" "$(basename "${appPath}")"`);
+}
+
+// Always create a ZIP that preserves symlinks (zip -y / ditto)
+console.log('📦 Creating ZIP...');
+const zipPath = path.join(releasePath, `Messenger-${version}-macOS.zip`);
+try {
+  // ditto keeps macOS resource forks + symlinks correctly for .app bundles
+  execSync(`ditto -c -k --sequesterRsrc --keepParent "${appPath}" "${zipPath}"`);
   console.log(`✅ ZIP created: ${zipPath}`);
+} catch (error) {
+  console.error('❌ Failed to create ZIP:', error.message);
+  execSync(`cd "${path.dirname(appPath)}" && zip -ry "${zipPath}" "$(basename "${appPath}")"`);
+  console.log(`✅ ZIP created (fallback): ${zipPath}`);
 }
 
 // Clean up temp directory
